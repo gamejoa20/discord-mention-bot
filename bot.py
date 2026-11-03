@@ -11,7 +11,7 @@ app = Flask('')
 
 @app.route('/')
 def home():
-    return "Bot is running at MAX speed!"
+    return "Bot is running at optimized speed!"
 
 def run():
     port = int(os.environ.get("PORT", 8080))
@@ -41,16 +41,15 @@ bot = MyBot()
 async def on_ready():
     print(f"📢 [{bot.user}] 봇이 성공적으로 온라인 상태가 되었습니다!")
 
-def make_heavy_mention(users, count):
-    mention_line = ""
-    for u in users:
-        if u is not None:
-            # 한 번에 5번 겹쳐 써서 전송 효율을 극대화
-            mention_line += f"{u.mention} {u.mention} {u.mention} {u.mention} {u.mention} "
-    return f"# ⚡ {mention_line}\n({count}회째 고속 호출)"
+# 헬퍼 함수: 일반 글자 크기로 깔끔하게 멘션 텍스트 생성
+def make_single_mention(users, count):
+    # 선택된 유저들을 한 번씩만 나열 (예: @회구 @친구)
+    mention_line = " ".join([u.mention for u in users if u is not None])
+    # 크기 키우는 기호(#)를 빼고 일반 텍스트로 출력합니다.
+    return f"{mention_line} ({count}회째)"
 
-# [기능 1] 채널 초고속 무한 맨션
-@bot.tree.command(name="맨션", description="선택한 유저들을 허용된 최대 속도로 무한 호출합니다.")
+# [기능 1] 채널 최적화 고속 무한 맨션 (일반 크기)
+@bot.tree.command(name="맨션", description="선택한 유저들을 일반 글자 크기로 허용된 최대 속도로 무한 호출합니다.")
 @app_commands.describe(
     유저1="첫 번째 유저를 선택하세요 (필수)",
     유저2="두 번째 유저를 선택하세요 (선택)"
@@ -64,18 +63,22 @@ async def mention(interaction: discord.Interaction, 유저1: discord.Member, 유
 
     try:
         bot.is_mentioning = True
-        await interaction.response.send_message("🚀 초고속 무한 호출을 시작합니다! (멈추려면 `/중지`)", ephemeral=True)
+        await interaction.response.send_message("🚀 무한 호출을 시작합니다! (멈추려면 `/중지`)", ephemeral=True)
         
         count = 1
         while bot.is_mentioning:
-            heavy_text = make_heavy_mention(user_list, count)
+            # 일반 크기의 텍스트 생성
+            single_text = make_single_mention(user_list, count)
             
-            # 메시지 전송 명령
-            await interaction.channel.send(heavy_text)
+            await interaction.channel.send(single_text)
             count += 1
             
-            # 디스코드 차단을 피하는 최소한의 한계 속도 (0.45초)
-            await asyncio.sleep(0.45)
+            # --- 디스코드 정지 방지 안전 브레이크 ---
+            if count % 10 == 0:
+                await asyncio.sleep(2.0)
+            else:
+                await asyncio.sleep(0.45)
+                
             if not bot.is_mentioning:
                 break
             
@@ -84,15 +87,15 @@ async def mention(interaction: discord.Interaction, 유저1: discord.Member, 유
         bot.is_mentioning = False
         print(f"명령어 실행 오류: {e}")
 
-# [기능 2] 개인 메시지(DM) 고속 무한 멘션
-@bot.tree.command(name="갠디맨션", description="선택한 유저들의 DM으로 고속 무한 메시지를 보냅니다.")
+# [기능 2] 개인 메시지(DM) 고속 무한 멘션 (일반 크기)
+@bot.tree.command(name="갠디맨션", description="선택한 유저들의 DM으로 일반 글자 크기의 무한 메시지를 보냅니다.")
 @app_commands.describe(유저1="첫 번째 유저를 선택하세요 (필수)")
 async def dm_mention(interaction: discord.Interaction, 유저1: discord.Member):
     if bot.is_mentioning:
         await interaction.response.send_message("❌ 이미 멘션 명령어가 작동 중입니다. `/중지` 후 다시 시도하세요.", ephemeral=True)
         return
 
-    await interaction.response.send_message("📬 DM 고속 전송을 시작합니다! (멈추려면 `/중지`)", ephemeral=True)
+    await interaction.response.send_message("📬 DM 무한 전송을 시작합니다! (멈추려면 `/중지`)", ephemeral=True)
 
     try:
         bot.is_mentioning = True
@@ -100,15 +103,18 @@ async def dm_mention(interaction: discord.Interaction, 유저1: discord.Member):
         
         while bot.is_mentioning:
             try:
-                dm_text = f"{유저1.mention} " * 5
-                await 유저1.send(f"⚡ {dm_text}\n확인하세요! ({count}회째)")
+                await 유저1.send(f"{유저1.mention} 호출되었습니다! ({count}회째)")
             except discord.Forbidden:
                 print(f"오류: DM을 보낼 수 없습니다.")
                 break
             
-            # DM은 제한이 더 엄격하므로 안전 마지노선 0.6초 설정
-            await asyncio.sleep(0.6)
             count += 1
+            
+            if count % 8 == 0:
+                await asyncio.sleep(2.0)
+            else:
+                await asyncio.sleep(0.5)
+                
             if not bot.is_mentioning:
                 break
             
@@ -118,7 +124,7 @@ async def dm_mention(interaction: discord.Interaction, 유저1: discord.Member):
         print(f"명령어 실행 오류: {e}")
 
 # [기능 3] 무한 멘션 중지 명령어
-@bot.tree.command(name="중지", description="현재 진행 중인 모든 고속 멘션을 즉시 중단합니다.")
+@bot.tree.command(name="중지", description="현재 진행 중인 모든 멘션을 즉시 중단합니다.")
 async def stop_mention(interaction: discord.Interaction):
     if not bot.is_mentioning:
         await interaction.response.send_message("❌ 현재 실행 중인 멘션 명령어가 없습니다.", ephemeral=True)
