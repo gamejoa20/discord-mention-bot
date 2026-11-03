@@ -41,25 +41,33 @@ bot = MyBot()
 async def on_ready():
     print(f"📢 [{bot.user}] 봇이 성공적으로 온라인 상태가 되었습니다!")
 
-# 헬퍼 함수: 일반 글자 크기로 깔끔하게 멘션 텍스트 생성
+# 헬퍼 함수: 일반 글자 크기로 깔끔하게 멘션 텍스트 생성 (여러 명 공백 구분)
 def make_single_mention(users, count):
-    # 선택된 유저들을 한 번씩만 나열 (예: @회구 @친구)
     mention_line = " ".join([u.mention for u in users if u is not None])
-    # 크기 키우는 기호(#)를 빼고 일반 텍스트로 출력합니다.
     return f"{mention_line} ({count}회째)"
 
-# [기능 1] 채널 최적화 고속 무한 맨션 (일반 크기)
-@bot.tree.command(name="맨션", description="선택한 유저들을 일반 글자 크기로 허용된 최대 속도로 무한 호출합니다.")
+# [기능 1] 채널 최적화 고속 무한 맨션 (최대 5명)
+@bot.tree.command(name="맨션", description="선택한 유저들을 일반 글자 크기로 허용된 최대 속도로 무한 호출합니다. (최대 5명)")
 @app_commands.describe(
     유저1="첫 번째 유저를 선택하세요 (필수)",
-    유저2="두 번째 유저를 선택하세요 (선택)"
+    유저2="두 번째 유저를 선택하세요 (선택)",
+    유저3="세 번째 유저를 선택하세요 (선택)",
+    유저4="네 번째 유저를 선택하세요 (선택)",
+    유저5="다섯 번째 유저를 선택하세요 (선택)"
 )
-async def mention(interaction: discord.Interaction, 유저1: discord.Member, 유저2: discord.Member = None):
+async def mention(
+    interaction: discord.Interaction, 
+    유저1: discord.Member, 
+    유저2: discord.Member = None, 
+    유저3: discord.Member = None, 
+    유저4: discord.Member = None, 
+    유저5: discord.Member = None
+):
     if bot.is_mentioning:
         await interaction.response.send_message("❌ 이미 멘션 명령어가 작동 중입니다. `/중지` 후 다시 시도하세요.", ephemeral=True)
         return
 
-    user_list = [u for u in [유저1, 유저2] if u is not None]
+    user_list = [u for u in [유저1, 유저2, 유저3, 유저4, 유저5] if u is not None]
 
     try:
         bot.is_mentioning = True
@@ -67,9 +75,7 @@ async def mention(interaction: discord.Interaction, 유저1: discord.Member, 유
         
         count = 1
         while bot.is_mentioning:
-            # 일반 크기의 텍스트 생성
             single_text = make_single_mention(user_list, count)
-            
             await interaction.channel.send(single_text)
             count += 1
             
@@ -87,14 +93,28 @@ async def mention(interaction: discord.Interaction, 유저1: discord.Member, 유
         bot.is_mentioning = False
         print(f"명령어 실행 오류: {e}")
 
-# [기능 2] 개인 메시지(DM) 고속 무한 멘션 (일반 크기)
-@bot.tree.command(name="갠디맨션", description="선택한 유저들의 DM으로 일반 글자 크기의 무한 메시지를 보냅니다.")
-@app_commands.describe(유저1="첫 번째 유저를 선택하세요 (필수)")
-async def dm_mention(interaction: discord.Interaction, 유저1: discord.Member):
+# [기능 2] 개인 메시지(DM) 고속 무한 멘션 (최대 5명)
+@bot.tree.command(name="갠디맨션", description="선택한 유저들의 DM으로 일반 글자 크기의 무한 메시지를 보냅니다. (최대 5명)")
+@app_commands.describe(
+    유저1="첫 번째 유저를 선택하세요 (필수)",
+    유저2="두 번째 유저를 선택하세요 (선택)",
+    유저3="세 번째 유저를 선택하세요 (선택)",
+    유저4="네 번째 유저를 선택하세요 (선택)",
+    유저5="다섯 번째 유저를 선택하세요 (선택)"
+)
+async def dm_mention(
+    interaction: discord.Interaction, 
+    유저1: discord.Member, 
+    유저2: discord.Member = None, 
+    유저3: discord.Member = None, 
+    유저4: discord.Member = None, 
+    유저5: discord.Member = None
+):
     if bot.is_mentioning:
         await interaction.response.send_message("❌ 이미 멘션 명령어가 작동 중입니다. `/중지` 후 다시 시도하세요.", ephemeral=True)
         return
 
+    user_list = [u for u in [유저1, 유저2, 유저3, 유저4, 유저5] if u is not None]
     await interaction.response.send_message("📬 DM 무한 전송을 시작합니다! (멈추려면 `/중지`)", ephemeral=True)
 
     try:
@@ -102,14 +122,17 @@ async def dm_mention(interaction: discord.Interaction, 유저1: discord.Member):
         count = 1
         
         while bot.is_mentioning:
-            try:
-                await 유저1.send(f"{유저1.mention} 호출되었습니다! ({count}회째)")
-            except discord.Forbidden:
-                print(f"오류: DM을 보낼 수 없습니다.")
-                break
+            for target_user in user_list:
+                if not bot.is_mentioning:
+                    break
+                try:
+                    await target_user.send(f"{target_user.mention} 호출되었습니다! ({count}회째)")
+                except discord.Forbidden:
+                    print(f"오류: {target_user.name} 님이 DM을 차단했습니다.")
             
             count += 1
             
+            # 다중 DM 발송 시 차단 안전 브레이크
             if count % 8 == 0:
                 await asyncio.sleep(2.0)
             else:
