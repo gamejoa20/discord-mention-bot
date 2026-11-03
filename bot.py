@@ -163,3 +163,4 @@ if token:
     bot.run(token)
 else:
     print("에러: DISCORD_TOKEN 환경 변수를 찾을 수 없습니다.")
+
