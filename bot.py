@@ -65,10 +65,9 @@ bot = MyBot()
 async def on_ready():
     print(f"📢 [{bot.user}] 봇이 성공적으로 온라인 상태가 되었습니다!")
 
-# [추가] 호출한 사람(caller) 표시
-def make_single_mention(users, count, caller):
+def make_single_mention(users, count):
     mention_line = " ".join([u.mention for u in users if u is not None])
-    return f"{mention_line} ({count}회째) | 호출한 사람: {caller.display_name}"
+    return f"{mention_line} ({count}회째)"
 
 # [기능 1] 채널 최적화 고속 무한 맨션 (최대 5명)
 @bot.tree.command(name="맨션", description="선택한 유저들을 일반 글자 크기로 안정적인 최대 속도로 무한 호출합니다. (최대 5명)")
@@ -95,12 +94,14 @@ async def mention(
 
     try:
         bot.is_mentioning = True
-        await interaction.response.send_message("🚀 무한 호출을 시작합니다! (멈추려면 `/중지`)", ephemeral=True)
+        # [추가] 명령어 쓸 때 한 번만 누가 썼는지 표시
+        await interaction.response.send_message(
+            f"🚀 {interaction.user.display_name} 님이 무한 호출을 시작했습니다! (멈추려면 `/중지`)"
+        )
         
         count = 1
         while bot.is_mentioning:
-            # [추가] 호출한 사람 전달
-            single_text = make_single_mention(user_list, count, interaction.user)
+            single_text = make_single_mention(user_list, count)
             await interaction.channel.send(single_text)
             count += 1
             
@@ -144,17 +145,20 @@ async def dm_mention(
     try:
         bot.is_mentioning = True
         count = 1
+
+        # [추가] 명령어 쓸 때 한 번만 누가 썼는지 DM으로 표시
+        for target_user in user_list:
+            try:
+                await target_user.send(f"👤 {interaction.user.display_name} 님이 호출을 시작했습니다.")
+            except discord.Forbidden:
+                pass
         
         while bot.is_mentioning:
             for target_user in user_list:
                 if not bot.is_mentioning:
                     break
                 try:
-                    # [추가] 호출한 사람 표시
-                    await target_user.send(
-                        f"{target_user.mention} 호출되었습니다! ({count}회째)\n"
-                        f"👤 호출한 사람: {interaction.user.display_name}"
-                    )
+                    await target_user.send(f"{target_user.mention} 호출되었습니다! ({count}회째)")
                 except discord.Forbidden:
                     print(f"오류: {target_user.name} 님이 DM을 차단했습니다.")
                 await asyncio.sleep(0.3)
