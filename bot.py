@@ -65,9 +65,10 @@ bot = MyBot()
 async def on_ready():
     print(f"📢 [{bot.user}] 봇이 성공적으로 온라인 상태가 되었습니다!")
 
-def make_single_mention(users, count):
+# [추가] 호출한 사람(caller) 표시
+def make_single_mention(users, count, caller):
     mention_line = " ".join([u.mention for u in users if u is not None])
-    return f"{mention_line} ({count}회째)"
+    return f"{mention_line} ({count}회째) | 호출한 사람: {caller.display_name}"
 
 # [기능 1] 채널 최적화 고속 무한 맨션 (최대 5명)
 @bot.tree.command(name="맨션", description="선택한 유저들을 일반 글자 크기로 안정적인 최대 속도로 무한 호출합니다. (최대 5명)")
@@ -98,7 +99,8 @@ async def mention(
         
         count = 1
         while bot.is_mentioning:
-            single_text = make_single_mention(user_list, count)
+            # [추가] 호출한 사람 전달
+            single_text = make_single_mention(user_list, count, interaction.user)
             await interaction.channel.send(single_text)
             count += 1
             
@@ -148,7 +150,11 @@ async def dm_mention(
                 if not bot.is_mentioning:
                     break
                 try:
-                    await target_user.send(f"{target_user.mention} 호출되었습니다! ({count}회째)")
+                    # [추가] 호출한 사람 표시
+                    await target_user.send(
+                        f"{target_user.mention} 호출되었습니다! ({count}회째)\n"
+                        f"👤 호출한 사람: {interaction.user.display_name}"
+                    )
                 except discord.Forbidden:
                     print(f"오류: {target_user.name} 님이 DM을 차단했습니다.")
                 await asyncio.sleep(0.3)
@@ -176,7 +182,10 @@ async def stop_mention(interaction: discord.Interaction):
         return
 
     bot.is_mentioning = False
-    await interaction.response.send_message("🛑 모든 멘션 호출을 강제로 중지했습니다!")
+    # [추가] 누가 중지했는지 표시
+    await interaction.response.send_message(
+        f"🛑 {interaction.user.display_name} 님이 멘션 호출을 중지했습니다!"
+    )
 
 # 웹 서버 및 자체 생존 루프 가동 후 봇 실행
 keep_alive()
